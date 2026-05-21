@@ -9,7 +9,9 @@ A 2nd-year software engineering DBMS course. cafe management system built with C
 
 # Files
 - **"src/cafe_db.pgc"** - it has main functionality of the database in C language with PostgreSQL.
-- **"/database"** - contains database files to create tables, virtual tables, insert data, triggers, cleanup.
+- **"/database/*.sql"** - contains database files to create tables, virtual tables, insert data, triggers, cleanup.
+- **"/database/diagrams/"** - PNG format made with DIA Editor. Main structure where database idea was created
+
 
 # Database scehma design
 The database was made to mimck cafe business logic
