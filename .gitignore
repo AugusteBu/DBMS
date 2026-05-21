@@ -53,3 +53,8 @@ dkms.conf
 
 # debug information files
 *.dwo
+cafe_db.c
+cafe_db
+app
+.env
+*.log
