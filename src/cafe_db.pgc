@@ -1,0 +1,309 @@
+#include <stdio.h>
+#include <ctype.h>
+#include <termios.h>
+#include <unistd.h>
+#include <sqlca.h>
+#include <stdlib.h>
+#include <string.h>
+
+EXEC SQL INCLUDE sqlca;
+EXEC SQL BEGIN DECLARE SECTION;
+long kliento_id, stalo_nr, stalo_Nr,nr;
+char vardas[51], pavarde[51], email[101], telefono_numeris[16], slaptazodis[20];
+
+int result;
+EXEC SQL END DECLARE SECTION;
+void kliento_iterpimas(long id, char *vardas, char *pavarde, long stalo_nr);
+void kliento_paieska_pagal_id(long kliento_id);
+void kliento_paieska_pagal_stalo_nr(long nr);
+
+void kliento_atnaujinimas(long id);
+void kliento_istrinimas(long kliento_id);
+void stalo_iterpimas();
+void stalo_paieska(long stalo_nr);		
+int main()
+{
+  printf("Programa pradeda darba\n") ;
+	printf("Slaptazodis: \n") ;
+	int i = 0;
+char c;
+static struct termios oldt, newt;
+tcgetattr(STDIN_FILENO, &oldt);
+newt = oldt;
+newt.c_lflag &= ~(ECHO);
+tcsetattr(STDIN_FILENO,TCSANOW, &newt);
+while((c=getchar())!='\n' && c!=EOF){
+	if (i < sizeof(slaptazodis) -1 ){
+		slaptazodis[i++] = c;	
+	}
+}	
+slaptazodis[i] = '\0';
+printf("Jungiamasi...\n");
+tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+	
+  EXEC SQL CONNECT TO db_host USER username USING :slaptazodis ;
+
+
+  if( 0 != SQLCODE )
+  {
+    printf("SQLCODE=%ld\n", SQLCODE ) ;
+  }
+  else{
+      printf("Sekmingai prisijungta");
+
+int pasirinkimas, pasirinkimas2;
+
+do{
+	printf("\n\n1. Prideti klienta\n2. Ieskoti kliento (ID, stalo_nr)\n3. Atnaujinti kliento duomenis\n4. Istrinti klienta\n\n5. Prideti viena stala\n6. Ieskoti ar stalas egzistuoja\n\n7.Iseiti\nPasirinkite,ka norite atilikti: ");
+	scanf("%d", &pasirinkimas);
+	switch(pasirinkimas) {
+		case 1:
+		printf("Iveskite ID: ");
+		scanf("%ld", &kliento_id);
+		printf("Iveskite varda: ");
+		scanf("%s", vardas);
+		printf("Iveskite pavarde: ");
+		scanf("%s", pavarde);
+		printf("Iveskite stalo numeri: ");
+		scanf("%ld", &stalo_nr);
+		kliento_iterpimas(kliento_id, vardas, pavarde, stalo_nr);
+		break;
+		case 2:
+		printf("\n\n\nPagal ka norite surasti klienta: \n");
+		printf("\n1. Pagal ID\n2. Pagal stalo nr.\n3. Atsaukti operacija\n");
+		scanf("%d", &pasirinkimas2);
+		switch(pasirinkimas2) {
+			case 1:
+			printf("Iveskite kliento ID:");
+			scanf("%ld", &kliento_id);
+			kliento_paieska_pagal_id(kliento_id);
+			break;
+			case 2:
+			printf("Iveskite kliento stalo nr.:");
+			scanf("%ld", &stalo_nr);
+			kliento_paieska_pagal_stalo_nr(stalo_nr);
+			break;
+			case 3:
+			printf("Operacija atsaukta");
+			break;
+			default:printf("pasirinkite: \n");
+		}
+		break;
+		case 3:		//atnaujinti duom
+		printf("Atnaujinimas: pasirinkite klienta pagal ID: ");
+		scanf("%ld", &kliento_id);
+		kliento_atnaujinimas(kliento_id);
+		break;
+
+		case 4:			//istrinti
+		printf("Istrinimas: pasirinkite pagal ID: ");
+		scanf("%ld", &kliento_id);
+		kliento_istrinimas(kliento_id);
+		break;
+		case 5:		
+		printf("Prideti stalai: ");
+
+		stalo_iterpimas();
+		break;
+		case 6:	
+		printf("Paieska stalo numerio ar egzistuoja: ");
+		scanf("%ld", &nr);	
+		stalo_paieska(nr);		
+		break;
+		case 7:
+		printf("Programos pabaiga");
+		break;
+		default: printf("Pasirinkite: \n");
+	}
+}while(pasirinkimas != 7);
+
+  EXEC SQL DISCONNECT ;
+
+  return 0 ;
+}
+}
+void kliento_iterpimas(long id,  char *vardas, char *pavarde, long nr){
+		EXEC SQL INCLUDE sqlca;
+EXEC SQL BEGIN DECLARE SECTION;
+long kliento_id = id, stalo_nr = nr;
+char kliento_vardas[51], kliento_pavarde[51];
+
+EXEC SQL END DECLARE SECTION;
+
+strncpy(kliento_vardas,vardas, sizeof(kliento_vardas) - 1); 
+strncpy(kliento_pavarde,pavarde, sizeof(kliento_pavarde) - 1); 
+kliento_vardas[sizeof(kliento_vardas) -1] = '\0';
+kliento_pavarde[sizeof(kliento_pavarde) -1] = '\0';
+
+
+	EXEC SQL INSERT INTO username.klientas(id, vardas, pavarde, stalo_nr)
+	VALUES(:kliento_id, :kliento_vardas, :kliento_pavarde,:stalo_nr);
+	printf("\n\npran %s\n\n", sqlca.sqlerrm.sqlerrmc);
+	if(SQLCODE == 0){
+		printf("Klientas: %ld %s %s %ld\n",kliento_id, vardas, pavarde, stalo_nr);
+	}
+	else{
+		printf("Ivyko klaida. Kodas %ld\n", SQLCODE);
+				EXEC SQL ROLLBACK;
+	}
+	EXEC SQL COMMIT;
+}
+void kliento_paieska_pagal_id(long kliento_id)	
+{	
+	EXEC SQL BEGIN DECLARE SECTION ;
+	long id = kliento_id ;
+	EXEC SQL END DECLARE SECTION ;
+	EXEC SQL SELECT vardas, pavarde, stalo_nr
+	INTO :vardas, :pavarde, :stalo_nr
+	 FROM username.Klientas
+	 WHERE id = :id;
+	if(SQLCODE == 0){
+		printf("Klientas: %ld %s %s %ld\n", kliento_id, vardas, pavarde, stalo_nr);
+	}
+	else{
+		printf("Ivyko klaida. Kodas %ld\n", SQLCODE);
+		EXEC SQL ROLLBACK;
+	}
+	EXEC SQL COMMIT;
+}
+void kliento_paieska_pagal_stalo_nr(long nr)
+{	
+	EXEC SQL BEGIN DECLARE SECTION ;
+	long kliento_stalo_nr = nr;
+	EXEC SQL END DECLARE SECTION ;
+
+	EXEC SQL SELECT id, vardas, pavarde INTO :kliento_id, :vardas, :pavarde FROM username.Klientas WHERE stalo_nr = :kliento_stalo_nr;
+
+	if(SQLCODE == 0){
+		printf("Klientas: %ld %s %s %ld\n", kliento_id, vardas, pavarde, nr);
+	}
+	else{
+		printf("Ivyko klaida. Kodas %ld\n", SQLCODE);
+		EXEC SQL ROLLBACK;
+	}
+	EXEC SQL COMMIT;
+}
+
+void kliento_atnaujinimas(long id){
+	
+	EXEC SQL INCLUDE sqlca;
+	EXEC SQL BEGIN DECLARE SECTION;
+	long senas_id = id;
+	long kliento_id, kliento_stalo_nr;
+	char kliento_vardas[51], kliento_pavarde[51];
+	EXEC SQL END DECLARE SECTION;
+	long pakeisti;
+	printf("\nIveskite ka norite pakeisti: \n\n1. ID\n2. Varda 3. Pavarde\n4. Stalo nr.");
+	scanf("%ld", &pakeisti);
+	switch(pakeisti) {
+		case 1:
+		printf("iveskite nauja ID: ");
+		scanf("%ld", &kliento_id);
+		EXEC SQL UPDATE username.klientas
+		SET id = :kliento_id
+		WHERE id = :senas_id;
+		break;
+		case 2:
+		printf("iveskite nauja varda: ");
+		scanf("%s", kliento_vardas);
+		EXEC SQL UPDATE username.klientas
+		SET vardas = :kliento_vardas
+		WHERE id = :senas_id;
+		break;
+		case 3:
+		printf("iveskite nauja pavarde: ");
+		scanf("%s", kliento_pavarde);
+				EXEC SQL UPDATE username.klientas
+		SET pavarde = :kliento_pavarde
+		WHERE id = :senas_id;
+		break;
+		case 4:
+		printf("iveskite nauja stalo nr.: ");
+		scanf("%ld", &kliento_stalo_nr);
+		EXEC SQL UPDATE username.klientas
+		SET stalo_nr = :kliento_stalo_nr
+		WHERE id = :senas_id;
+		break;
+		default: printf("Pasirinkite:");
+		break;
+	}	
+	if(pakeisti == 1)
+	EXEC SQL SELECT id, vardas, pavarde, stalo_nr INTO :kliento_id, :kliento_vardas, :kliento_pavarde, :kliento_stalo_nr FROM username.klientas WHERE id = :kliento_id;
+	else 
+		EXEC SQL SELECT id, vardas, pavarde, stalo_nr INTO :kliento_id, :kliento_vardas, :kliento_pavarde, :kliento_stalo_nr FROM username.klientas WHERE id = :senas_id;
+printf("\n\npran %s\n\n", sqlca.sqlerrm.sqlerrmc);
+	if(SQLCODE == 0){
+		printf("Nauji duomenys: %ld %s %s %ld\n", kliento_id, kliento_vardas, kliento_pavarde, kliento_stalo_nr);
+
+	}
+	else{
+		printf("Ivyko klaida. Kodas %ld\n", SQLCODE);
+		EXEC SQL ROLLBACK;
+	}
+	EXEC SQL COMMIT;
+}
+
+void kliento_istrinimas(long kliento_id){
+	EXEC SQL BEGIN DECLARE SECTION ;
+	long id = kliento_id;
+	EXEC SQL END DECLARE SECTION ;
+	
+	EXEC SQL DELETE FROM username.Klientas WHERE id = :id;
+	if(SQLCODE == 0){
+		printf("Kliento duomenys istrinti: %ld\n", kliento_id);	
+	}
+	else{
+		printf("Ivyko klaida. Kodas %ld\n", SQLCODE);
+		EXEC SQL ROLLBACK;
+	}
+EXEC SQL COMMIT;
+}
+
+void stalo_iterpimas(){
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	long nr;
+	EXEC SQL END DECLARE SECTION;
+
+	EXEC SQL INCLUDE sqlca;
+
+	EXEC SQL INSERT INTO username.stalas DEFAULT VALUES  ;
+	EXEC SQL SELECT nr INTO :nr FROM username.stalas OFFSET(SELECT COUNT(*) FROM stalas) -1;
+	//printf("\n\npran %s\n\n", sqlca.sqlerrm.sqlerrmc);
+	printf("Stalas %ld pridetas!",nr );
+	if(SQLCODE == 0){
+		printf("\n");
+	}
+	else if(SQLCODE < 0){
+		printf("Ivyko klaida. Kodas %ld\n", SQLCODE);
+				EXEC SQL ROLLBACK;
+	}
+	else{
+		printf("Duomenys nerasti klientui iterpti\n");
+				EXEC SQL ROLLBACK;
+	}
+			EXEC SQL COMMIT;
+
+}
+void stalo_paieska(long stalo_nr)		
+{	
+	EXEC SQL BEGIN DECLARE SECTION ;
+	long nr = stalo_nr ;
+	EXEC SQL END DECLARE SECTION ;
+
+	EXEC SQL SELECT nr 
+	INTO :nr 
+	FROM username.stalas
+	 WHERE nr = :nr;
+
+	if(SQLCODE == 0){
+		printf("Stalas numeriu %ld egzistuoja\n", nr);
+	}
+	else if(SQLCODE < 0){
+		printf("Ivyko klaida. Kodas %ld\n", SQLCODE);
+	}
+	else{
+		printf("Ieskomi duomenys nerasti\n");
+	}
+}
